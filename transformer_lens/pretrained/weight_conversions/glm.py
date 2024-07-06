@@ -19,9 +19,6 @@ def convert_glm_weights(glm_model, cfg: HookedTransformerConfig):
         # Attention weights (assuming split for query, key, and value)
         W_QKV = layer.self_attention.query_key_value.weight
 
-        # Calculate the dimension of each head
-        d_head = cfg.d_model // cfg.n_heads  # Assuming cfg.n_heads = 32
-
         # Reshape and then split into Q, K, V
         W_QKV = einops.rearrange(W_QKV, "(n h) d -> n h d", n=cfg.n_heads)
         W_Q, W_K, W_V = W_QKV.chunk(3, dim=1)
