@@ -178,6 +178,17 @@ def solu(input: Float[torch.Tensor, "batch pos d_mlp"]) -> Float[torch.Tensor, "
     """
     return input * F.softmax(input, dim=-1)
 
+def glm_swiglu(x: Float[torch.Tensor, "batch pos d_mlp"]) -> Float[
+    torch.Tensor, "batch pos d_mlp"
+]:
+    """
+    SwiGLU activation function (single argument version).
+
+    Implements SwiGLU using the single-argument approach from ChatGLM,
+    where W and V transformations are handled implicitly.
+    """
+    x = torch.chunk(x, 2, dim=-1)
+    return F.silu(x[0]) * x[1]
 
 ACTIVATION_FN_DICT = {
     "solu": solu,
@@ -188,6 +199,7 @@ ACTIVATION_FN_DICT = {
     "relu": F.relu,
     "gelu": F.gelu,
     "gelu_pytorch_tanh": lambda tensor: F.gelu(tensor, approximate="tanh"),
+    "glm_swiglu": glm_swiglu,
 }
 
 

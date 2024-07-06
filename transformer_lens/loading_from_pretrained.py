@@ -27,6 +27,7 @@ from transformer_lens.pretrained.weight_conversions import (
     convert_bloom_weights,
     convert_coder_weights,
     convert_gemma_weights,
+    convert_glm_weights,
     convert_gpt2_weights,
     convert_gptj_weights,
     convert_llama_weights,
@@ -218,6 +219,10 @@ OFFICIAL_MODEL_NAMES = [
     "google-t5/t5-base",
     "google-t5/t5-large",
     "ai-forever/mGPT",
+    "THUDM/glm-4-9b",
+    "THUDM/glm-4-9b-chat",
+    "THUDM/glm-4-9b-chat-1m",
+    "THUDM/glm-4v-9b",
 ]
 """Official model names for models on HuggingFace."""
 
@@ -1293,6 +1298,32 @@ def convert_hf_model_config(model_name: str, **kwargs):
             "use_attn_scale": False,
             "tie_word_embeddings": hf_config.tie_word_embeddings,
         }
+    elif architecture == "ChatGLMModel":
+        cfg_dict = {
+            "d_model": hf_config.hidden_size,
+            "d_head": hf_config.hidden_size // hf_config.num_attention_heads,
+            "n_heads": hf_config.num_attention_heads,
+            "d_mlp": hf_config.ffn_hidden_size,
+            "n_layers": hf_config.num_hidden_layers,
+            "n_ctx": hf_config.seq_length,
+            "eps": hf_config.layernorm_epsilon,
+            "d_vocab": hf_config.padded_vocab_size,
+            "act_fn": "glm_swiglu",
+
+            # GQA Handling
+            #"use_gqa": hf_config.multi_query_attention,
+            #"n_gqa_groups": hf_config.multi_query_group_num,
+
+            # Rotary Embeddings
+            "positional_embedding_type": "rotary",
+            "rotary_dim": hf_config.kv_channels,
+            "rotary_base": hf_config.rope_ratio,
+
+            # Normalization
+            "normalization_type": "RMS",
+            "gated_mlp": True,
+            "final_rms": hf_config.post_layer_norm and hf_config.rmsnorm,
+        }
     else:
         raise NotImplementedError(f"{architecture} is not currently supported.")
     # All of these models use LayerNorm
@@ -1678,6 +1709,8 @@ def get_pretrained_state_dict(
             state_dict = convert_gemma_weights(hf_model, cfg)
         elif cfg.original_architecture == "Gemma2ForCausalLM":
             state_dict = convert_gemma_weights(hf_model, cfg)
+        elif cfg.original_architecture == "ChatGLMModel":
+            state_dict = convert_glm_weights(hf_model, cfg)
         else:
             raise ValueError(
                 f"Loading weights from the architecture is not currently supported: {cfg.original_architecture}, generated from model name {cfg.model_name}. Feel free to open an issue on GitHub to request this feature."
